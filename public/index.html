@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mistral OCR Tool</title>
+  <link rel="icon" href="data:," />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="container">
+    <h1>🧠 Mistral OCR Tool</h1>
+    <p class="subtitle">حوّل ملفات الـ PDF إلى نص منسق وملف Word بسهولة</p>
+
+    <form id="ocrForm">
+      <label for="apiKey">🔑 مفتاح API:</label>
+      <input type="text" id="apiKey" placeholder="أدخل مفتاح Mistral API هنا (اختياري)" />
+
+      <label for="fileInput">📄 اختر ملف PDF:</label>
+      <input type="file" id="fileInput" accept="application/pdf" required />
+
+      <button type="submit" id="analyzeBtn">بدء التحليل</button>
+
+      <div class="progress-container">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+    </form>
+
+    <div id="result" class="hidden">
+      <h3>📑 معاينة النص المستخرج:</h3>
+      <pre id="previewText"></pre>
+      <a id="downloadLink" href="#" class="download-btn" target="_blank">⬇️ تحميل ملف Word</a>
+    </div>
+
+    <footer>
+      <p>© 2025 - منصة كيف التعليمية | Mistral OCR API</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
