@@ -1,64 +1,65 @@
-import os
-import base64
-import logging
+﻿import base64
+from dataclasses import dataclass
+from typing import Optional
+
 from mistralai import Mistral
 
-# إعداد اللوج
-logger = logging.getLogger("MistralService")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+from app.core.config import get_settings
+from app.core.logging import configure_logging
+
+logger = configure_logging()
+
+
+@dataclass
+class OCRText:
+    markdown: str
+    page_count: int
+    word_count: int
 
 
 class MistralService:
-    """خدمة تحليل ملفات PDF عبر واجهة Mistral OCR."""
+    """واجهة للتعامل مع Mistral OCR واستخراج النصوص مع بيانات إضافية."""
 
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or os.getenv("MISTRAL_API_KEY")
+    def __init__(self, api_key: Optional[str] = None) -> None:
+        settings = get_settings()
+        self.api_key: Optional[str] = api_key or settings.mistral_api_key
         if not self.api_key:
-            raise ValueError("❌ لم يتم توفير مفتاح Mistral API.")
-        self.client = Mistral(api_key=self.api_key)
-        logger.info(f"✅ تم إنشاء عميل Mistral OCR (المفتاح يبدأ بـ {self.api_key[:6]}***)")
+            raise ValueError("يجب توفير مفتاح Mistral API عبر الإعدادات أو النموذج.")
 
-    def extract_text(self, file_bytes: bytes) -> str:
-        """يحلل الملف باستخدام واجهة OCR الأصلية من Mistral."""
-        logger.info(f"🔑 المفتاح المستخدم للتحليل: {self.api_key[:10]}...")
+        self.client = Mistral(api_key=self.api_key)
+        logger.info("تم تهيئة عميل Mistral OCR.")
+
+    def extract_text(self, file_bytes: bytes) -> OCRText:
+        logger.info("إرسال ملف PDF إلى Mistral OCR (عدد البايتات %s).", len(file_bytes))
 
         try:
-            logger.info("🚀 بدأ تحليل الملف باستخدام Mistral OCR API ...")
-
-            # 1️⃣ تحويل الملف إلى base64
             b64_data = base64.b64encode(file_bytes).decode()
-
-            # 2️⃣ استدعاء واجهة OCR الرسمية
             response = self.client.ocr.process(
                 model="mistral-ocr-latest",
                 document={
                     "type": "document_url",
-                    "document_url": f"data:application/pdf;base64,{b64_data}"
+                    "document_url": f"data:application/pdf;base64,{b64_data}",
                 },
-                include_image_base64=False,  # يمكن تغييره إلى True لو أردت صورًا
+                include_image_base64=False,
             )
 
-            logger.info("✅ تم استلام الرد من Mistral بنجاح.")
+            if not getattr(response, "pages", None):
+                logger.warning("لم يتم استرجاع أي صفحات من خدمة Mistral OCR.")
+                return OCRText(markdown="", page_count=0, word_count=0)
 
-            # 3️⃣ استخراج النصوص من جميع الصفحات
-            if not hasattr(response, "pages") or not response.pages:
-                logger.warning("⚠️ لم يتم العثور على صفحات في الرد.")
-                return "⚠️ لم يتم استخراج أي نص من الملف."
-
-            all_text = []
+            all_text: list[str] = []
             for page in response.pages:
-                if hasattr(page, "markdown"):
-                    all_text.append(page.markdown.strip())
+                markdown = getattr(page, "markdown", "").strip()
+                if markdown:
+                    all_text.append(markdown)
 
             combined_text = "\n\n".join(all_text)
-            logger.info(f"📄 تم استخراج النص من {len(response.pages)} صفحات (إجمالي {len(combined_text)} حرفًا).")
+            page_count = len(all_text)
+            word_count = len(combined_text.split())
+            logger.info("اكتمل OCR مع %s صفحة و %s كلمة تقريبًا.", page_count, word_count)
 
-            return combined_text
+            return OCRText(markdown=combined_text, page_count=page_count, word_count=word_count)
 
-        except Exception as e:
-            logger.exception(f"❌ خطأ أثناء الاتصال بـ Mistral OCR: {e}")
+        except Exception as exc:  # pragma: no cover - حالات فشل نادرة
+            logger.exception("فشل تواصل Mistral OCR: %s", exc)
             raise
