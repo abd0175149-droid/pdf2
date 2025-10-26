@@ -31,11 +31,6 @@ async def root() -> dict:
     logger.debug("Root endpoint accessed")
     return {
         "message": "Welcome to Mistral OCR API 🚀",
-        "usage": {
-            "/health": "Check API status",
-            "/ocr/upload": "Upload PDF for OCR",
-            "/pdf/merge": "Merge multiple PDF files",
-        },
     }
 
 
